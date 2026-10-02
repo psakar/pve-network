@@ -9,5 +9,18 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+# The pkg.pve-network.lsbservice build profile is for Devuan and other
+# systemd-free Debian derivatives (see pve-common's and pve-manager's
+# pkg.*.lsbservice profiles): it doesn't install the systemd drop-in for the
+# SDN's dnsmasq@ instances; without systemd, those are started at boot by
+# pve-common's pve-service-instances init script after the network. To build
+# this variant, run:
+#   dpkg-buildpackage -b -us -uc -Ppkg.pve-network.lsbservice
+ifneq (,$(filter pkg.pve-network.lsbservice,$(DEB_BUILD_PROFILES)))
+export PVE_INIT_SYSTEM = lsbservice
+else
+export PVE_INIT_SYSTEM = systemd
+endif
+
 %:
-	dh $@ 
+	dh $@
