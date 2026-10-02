@@ -16,11 +16,11 @@
 # pve-common's pve-service-instances init script after the network. To build
 # this variant, run:
 #   dpkg-buildpackage -b -us -uc -Ppkg.pve-network.lsbservice
-ifneq (,$(filter pkg.pve-network.lsbservice,$(DEB_BUILD_PROFILES)))
-export PVE_INIT_SYSTEM = lsbservice
-else
-export PVE_INIT_SYSTEM = systemd
-endif
-
 %:
 	dh $@
+
+ifneq (,$(filter pkg.pve-network.lsbservice,$(DEB_BUILD_PROFILES)))
+# installed by src/services and listed in debian/libpve-network-perl.install
+execute_after_dh_install:
+	rm -rf debian/libpve-network-perl/usr/lib/systemd
+endif
