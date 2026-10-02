@@ -5,6 +5,7 @@ use warnings;
 use PVE::Network::SDN::Controllers::Plugin;
 use PVE::Tools;
 use PVE::INotify;
+use PVE::InitSystem;
 use PVE::JSONSchema qw(get_standard_option);
 use CPAN::Meta::YAML;
 use Encode;
@@ -87,7 +88,7 @@ sub reload_controller {
     my $bin_path = "/usr/bin/faucet";
 
     if (-e $conf_file && -e $bin_path) {
-        PVE::Tools::run_command(['systemctl', 'reload', 'faucet']);
+        PVE::InitSystem::reload_service('faucet');
     }
 }
 

@@ -29,6 +29,7 @@ string that is a FRR configuration line.
 
 =cut
 
+use PVE::InitSystem;
 use PVE::RESTEnvironment qw(log_warn);
 use PVE::Tools qw(file_get_contents file_set_contents run_command);
 
@@ -76,8 +77,16 @@ sub apply {
         return;
     }
 
-    run_command(['systemctl', 'enable', '--now', 'frr'])
-        if !-e "/etc/systemd/system/multi-user.target.wants/frr.service";
+    # enable it for boot and start it, unless enabled already, like 'systemctl enable --now'
+    my $frr_status = PVE::InitSystem::service_status('frr');
+    if ($frr_status->{load_state} eq 'not-found') {
+        # e.g. Debian's frr package without systemd: it ships only its units, not
+        # their frrinit.sh as init script, so restart() runs that directly
+        log_warn("the init system has no 'frr' service, FRR won't be started at boot");
+    } elsif (($frr_status->{unit_state} // '') ne 'enabled') {
+        PVE::InitSystem::enable_service('frr');
+        PVE::InitSystem::start_service('frr');
+    }
 
     if (!$force_restart) {
         eval { reload() };
@@ -119,7 +128,12 @@ sub restart {
         warn "$line \n";
     };
 
-    run_command(['systemctl', 'restart', 'frr'], errfunc => $err);
+    if (PVE::InitSystem::service_status('frr')->{load_state} ne 'not-found') {
+        PVE::InitSystem::restart_service('frr');
+    } else {
+        # without an frr service (see apply()), run the script it would run
+        run_command([$bin_path, 'restart'], errfunc => $err);
+    }
 }
 
 my $SDN_DAEMONS_DEFAULT = {
