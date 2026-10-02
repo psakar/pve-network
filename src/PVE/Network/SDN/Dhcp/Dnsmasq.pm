@@ -6,6 +6,7 @@ use warnings;
 use base qw(PVE::Network::SDN::Dhcp::Plugin);
 
 use Net::IP qw(:PROC);
+use PVE::InitSystem;
 use PVE::Tools qw(file_set_contents run_command lock_file);
 
 use File::Copy;
@@ -25,8 +26,9 @@ my sub assert_dnsmasq_installed {
     my ($noerr) = @_;
 
     my $bin_path = "/usr/sbin/dnsmasq";
-    my $dnsmasq_service_path = "/lib/systemd/system/dnsmasq.service";
-    if (!-e $bin_path || !-e $dnsmasq_service_path) {
+    # the dnsmasq package's service (its dnsmasq@ instances are used per zone), not only
+    # dnsmasq-base's binary
+    if (!-e $bin_path || PVE::InitSystem::service_status('dnsmasq')->{load_state} eq 'not-found') {
         return if $noerr; # just ignore, e.g., in case zone doesn't use DHCP at all
         log_warn("please install the 'dnsmasq' package in order to use the DHCP feature!");
         die "cannot reload with missing 'dnsmasq' package\n";
@@ -132,7 +134,7 @@ sub add_ip_mapping {
     }
 
     my $service_name = "dnsmasq\@$dhcpid";
-    systemctl_service('reload', $service_name) if $reload;
+    PVE::InitSystem::reload_service($service_name) if $reload;
     update_lease($dhcpid, $ip4, $mac);
 }
 
@@ -185,12 +187,6 @@ sub configure_vnet {
         "$DNSMASQ_CONFIG_ROOT/$dhcpid/10-$vnetid.conf",
         join("\n", @{$config}) . "\n",
     );
-}
-
-sub systemctl_service {
-    my ($action, $service) = @_;
-
-    PVE::Tools::run_command(['systemctl', $action, $service]);
 }
 
 sub before_configure {
@@ -286,9 +282,9 @@ sub after_configure {
 
     my $service_name = "dnsmasq\@$dhcpid";
 
-    systemctl_service('reload', 'dbus');
-    systemctl_service('enable', $service_name);
-    systemctl_service('restart', $service_name);
+    PVE::InitSystem::reload_service('dbus');
+    PVE::InitSystem::enable_service($service_name);
+    PVE::InitSystem::restart_service($service_name);
 }
 
 sub before_regenerate {
@@ -296,8 +292,9 @@ sub before_regenerate {
 
     return if !assert_dnsmasq_installed($noerr);
 
-    systemctl_service('stop', "dnsmasq@*");
-    systemctl_service('disable', 'dnsmasq@');
+    # all instances, i.e. those of zones that might be gone now
+    PVE::InitSystem::stop_service("dnsmasq@*");
+    PVE::InitSystem::disable_service('dnsmasq@');
 }
 
 sub after_regenerate {
