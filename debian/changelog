@@ -1,3 +1,10 @@
+libpve-network-perl (1.6.7+devuan2) trixie; urgency=medium
+
+  * sdn: frr: drop the fallback to running frrinit.sh directly, as frr's
+    pkg.frr.lsbservice build has an init script
+
+ -- Petr Sakař <petr.sakar@chare.eu>  Thu, 08 Oct 2026 00:37:51 +0200
+
 libpve-network-perl (1.6.7+devuan1) trixie; urgency=medium
 
   * build for systemd-free derivatives like Devuan (sysvinit or OpenRC),
