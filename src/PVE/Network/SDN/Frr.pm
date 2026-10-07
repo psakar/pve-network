@@ -78,12 +78,7 @@ sub apply {
     }
 
     # enable it for boot and start it, unless enabled already, like 'systemctl enable --now'
-    my $frr_status = PVE::InitSystem::service_status('frr');
-    if ($frr_status->{load_state} eq 'not-found') {
-        # e.g. Debian's frr package without systemd: it ships only its units, not
-        # their frrinit.sh as init script, so restart() runs that directly
-        log_warn("the init system has no 'frr' service, FRR won't be started at boot");
-    } elsif (($frr_status->{unit_state} // '') ne 'enabled') {
+    if ((PVE::InitSystem::service_status('frr')->{unit_state} // '') ne 'enabled') {
         PVE::InitSystem::enable_service('frr');
         PVE::InitSystem::start_service('frr');
     }
@@ -123,17 +118,7 @@ sub restart {
         die "missing $bin_path. Please install the frr package";
     }
 
-    my $err = sub {
-        my $line = shift;
-        warn "$line \n";
-    };
-
-    if (PVE::InitSystem::service_status('frr')->{load_state} ne 'not-found') {
-        PVE::InitSystem::restart_service('frr');
-    } else {
-        # without an frr service (see apply()), run the script it would run
-        run_command([$bin_path, 'restart'], errfunc => $err);
-    }
+    PVE::InitSystem::restart_service('frr');
 }
 
 my $SDN_DAEMONS_DEFAULT = {
